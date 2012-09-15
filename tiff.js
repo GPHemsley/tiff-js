@@ -256,8 +256,8 @@ TIFFParser.prototype = {
 		return fieldValues;
 	},
 
-	makeRGBFillValue: function(r, g, b) {
-		return "rgb(" + r + ", " + g + ", " + b + ")";
+	makeRGBAFillValue: function(r, g, b, a = 1.0) {
+		return "rgba(" + r + ", " + g + ", " + b + ", " + a + ")";
 	},
 
 	parseFileDirectory: function (byteOffset) {
@@ -366,7 +366,7 @@ TIFFParser.prototype = {
 			var ctx = this.canvas.getContext("2d");
 
 			// Set a default fill style.
-			ctx.fillStyle = this.makeRGBFillValue(255, 255, 255);
+			ctx.fillStyle = this.makeRGBAFillValue(255, 255, 255, 0);
 
 			var numStrips = strips.length;
 			var rowsPerStrip = fileDirectory.RowsPerStrip.values[0];
@@ -402,7 +402,7 @@ TIFFParser.prototype = {
 							case 1:
 								var shade = pixelSamples[0];
 
-								ctx.fillStyle = this.makeRGBFillValue(shade, shade, shade);
+								ctx.fillStyle = this.makeRGBAFillValue(shade, shade, shade);
 							break;
 
 							// RGB Full Color
@@ -410,7 +410,7 @@ TIFFParser.prototype = {
 								if (fileDirectory.ExtraSamples) {
 									//ctx.fillStyle = ;
 								} else {
-									ctx.fillStyle = this.makeRGBFillValue(pixelSamples[0], pixelSamples[1], pixelSamples[2]);
+									ctx.fillStyle = this.makeRGBAFillValue(pixelSamples[0], pixelSamples[1], pixelSamples[2]);
 								}
 							break;
 
