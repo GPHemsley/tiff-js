@@ -365,6 +365,9 @@ TIFFParser.prototype = {
 		if (canvas.getContext) {
 			var ctx = this.canvas.getContext("2d");
 
+			// Set a default fill style.
+			ctx.fillStyle = this.makeRGBFillValue(255, 255, 255);
+
 			var numStrips = strips.length;
 			var rowsPerStrip = fileDirectory.RowsPerStrip.values[0];
 			var imageLengthModRowsPerStrip = imageLength % rowsPerStrip;
@@ -384,9 +387,56 @@ TIFFParser.prototype = {
 
 				for (var y = 0, j = 0; y < numRowsInStrip, j < numPixels; y++) {
 					for (var x = 0; x < imageWidth; x++, j++) {
-						// Only do this for RGB images.
-						if ((fileDirectory.PhotometricInterpretation.values[0] === 2) && (fileDirectory.ExtraSamples === undefined)) {
-							ctx.fillStyle = this.makeRGBFillValue(strips[i][j][0], strips[i][j][1], strips[i][j][2]);
+						var pixelSamples = strips[i][j];
+						switch (fileDirectory.PhotometricInterpretation.values[0]) {
+							// Bilevel or Grayscale
+							// WhiteIsZero
+							case 0:
+								var invertValue = Math.pow(0x10, bytesPerSampleValues[0] * 2);
+
+								// Invert samples.
+								pixelSamples.forEach(function(sample, index, samples) { samples[index] = invertValue - sample; });
+
+							// Bilevel or Grayscale
+							// BlackIsZero
+							case 1:
+								var shade = pixelSamples[0];
+
+								ctx.fillStyle = this.makeRGBFillValue(shade, shade, shade);
+							break;
+
+							// RGB Full Color
+							case 2:
+								if (fileDirectory.ExtraSamples) {
+									//ctx.fillStyle = ;
+								} else {
+									ctx.fillStyle = this.makeRGBFillValue(pixelSamples[0], pixelSamples[1], pixelSamples[2]);
+								}
+							break;
+
+							// RGB Color Palette
+							case 3:
+							break;
+
+							// Transparency mask
+							case 4:
+							break;
+
+							// CMYK
+							case 5:
+							break;
+
+							// YCbCr
+							case 6:
+							break;
+
+							// CIELab
+							case 8:
+							break;
+
+							// Unknown Photometric Interpretation
+							default:
+							break;
 						}
 
 						ctx.fillRect(x, yPadding + y, 1, 1);
