@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+	<meta charset="UTF-8" />
+	<title>TIFF test</title>
+	<script src="tiff.js" type="text/javascript"></script>
+	<script type="text/javascript">
+		"use strict";
+		var prepareTIFF = function() {
+			var file = document.getElementById( "tiff-file" ).files[0];
+
+			if (file.type !== 'image/tiff') {
+				return;
+			}
+
+			var reader = new FileReader();
+
+			reader.onload = function(e) {
+				var canvas = document.getElementById("tiff-image");
+				var canvasParent = canvas.parentNode;
+
+				var tiffParser = new TIFFParser();console.log( tiffParser );
+				var tiffCanvas = tiffParser.parseTIFF(e.target.result, canvas);
+				console.log( tiffCanvas );
+
+				canvasParent.replaceChild(tiffCanvas, canvas);
+			};
+
+			reader.readAsArrayBuffer( file );
+		}
+	</script>
+</head>
+<body onload="prepareTIFF();">
+
+<form name="tiff-parser" method="post" enctype="multipart/form-data" style="margin: 10% auto auto; text-align: center;">
+
+	<input type="file" name="tiff-file" id="tiff-file" accept="image/tiff" required onchange="prepareTIFF();" />
+	<input type="button" name="parse" value="Parse TIFF" onclick="prepareTIFF();" />
+
+</form>
+
+<canvas id="tiff-image" style="display: block; max-width: 95%; margin: 2em auto; border: 1px dashed magenta; padding: 0px;"></canvas>
+
+</body>
+</html>
