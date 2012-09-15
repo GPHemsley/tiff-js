@@ -13,7 +13,7 @@ function TIFFParser() {
 TIFFParser.prototype = {
 	isLittleEndian: function () {
 		// Get byte order mark.
-		var BOM = this.tiffDataView.getUint16(0);
+		var BOM = this.getBytes(2, 0);
 
 		// Find out the endianness.
 		if (BOM === 0x4949) {
@@ -30,7 +30,7 @@ TIFFParser.prototype = {
 
 	hasTowel: function () {
 		// Check for towel.
-		if (this.tiffDataView.getUint16(2, this.littleEndian) !== 42) {
+		if (this.getBytes(2, 2) !== 42) {
 			throw RangeError("You forgot your towel!");
 			return false;
 		}
@@ -261,15 +261,15 @@ TIFFParser.prototype = {
 	},
 
 	parseFileDirectory: function (byteOffset) {
-		var numDirEntries = this.tiffDataView.getUint16(byteOffset, this.littleEndian);
+		var numDirEntries = this.getBytes(2, byteOffset);
 
 		var tiffFields = [];
 
 		for (var i = byteOffset + 2, entryCount = 0; entryCount < numDirEntries; i += 12, entryCount++) {
-			var fieldTag = this.tiffDataView.getUint16(i, this.littleEndian);
-			var fieldType = this.tiffDataView.getUint16(i + 2, this.littleEndian);
-			var typeCount = this.tiffDataView.getUint32(i + 4, this.littleEndian);
-			var valueOffset = this.tiffDataView.getUint32(i + 8, this.littleEndian);
+			var fieldTag = this.getBytes(2, i);
+			var fieldType = this.getBytes(2, i + 2);
+			var typeCount = this.getBytes(4, i + 4);
+			var valueOffset = this.getBytes(4, i + 8);
 
 			var fieldTagName = this.getFieldTagName( fieldTag );
 			var fieldTypeName = this.getFieldTypeName( fieldType );
@@ -283,7 +283,7 @@ TIFFParser.prototype = {
 
 		this.fileDirectories.push( tiffFields );
 
-		var nextIFDByteOffset = this.tiffDataView.getUint32(i, this.littleEndian);
+		var nextIFDByteOffset = this.getBytes(4, i);
 
 		if (nextIFDByteOffset === 0x00000000) {
 			return this.fileDirectories;
@@ -302,7 +302,7 @@ TIFFParser.prototype = {
 			return;
 		}
 
-		var firstIFDByteOffset = this.tiffDataView.getUint32(4, this.littleEndian);
+		var firstIFDByteOffset = this.getBytes(4, 4);
 
 		this.fileDirectories = this.parseFileDirectory(firstIFDByteOffset);
 
