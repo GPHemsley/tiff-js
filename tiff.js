@@ -363,34 +363,35 @@ TIFFParser.prototype = {
 		if (canvas.getContext) {
 			var ctx = this.canvas.getContext("2d");
 
-			// Only do this for RGB images.
-			if ((this.fileDirectories[0].PhotometricInterpretation.values[0] === 2) && (this.fileDirectories[0].ExtraSamples === undefined)) {
-				var numStrips = strips.length;
-				var rowsPerStrip = this.fileDirectories[0].RowsPerStrip.values[0];
-				var imageLengthModRowsPerStrip = imageLength % rowsPerStrip;
-				var rowsInLastStrip = (imageLengthModRowsPerStrip === 0) ? rowsPerStrip : imageLengthModRowsPerStrip;
+			var numStrips = strips.length;
+			var rowsPerStrip = this.fileDirectories[0].RowsPerStrip.values[0];
+			var imageLengthModRowsPerStrip = imageLength % rowsPerStrip;
+			var rowsInLastStrip = (imageLengthModRowsPerStrip === 0) ? rowsPerStrip : imageLengthModRowsPerStrip;
 
-				var numRowsInStrip = rowsPerStrip;
-				var numRowsInPreviousStrip = 0;
+			var numRowsInStrip = rowsPerStrip;
+			var numRowsInPreviousStrip = 0;
 
-				for (var i = 0; i < numStrips; i++) {
-					// The last strip may be short.
-					if ((i + 1) === numStrips) {
-						numRowsInStrip = rowsInLastStrip;
-					}
-
-					var numPixels = strips[i].length;
-					var yPadding = numRowsInPreviousStrip * i;
-
-					for (var y = 0, j = 0; y < numRowsInStrip, j < numPixels; y++) {
-						for (var x = 0; x < imageWidth; x++, j++) {
-							ctx.fillStyle = this.makeRGBFillValue(strips[i][j][0], strips[i][j][1], strips[i][j][2]);
-							ctx.fillRect(x, yPadding + y, 1, 1);
-						}
-					}
-
-					numRowsInPreviousStrip = numRowsInStrip;
+			for (var i = 0; i < numStrips; i++) {
+				// The last strip may be short.
+				if ((i + 1) === numStrips) {
+					numRowsInStrip = rowsInLastStrip;
 				}
+
+				var numPixels = strips[i].length;
+				var yPadding = numRowsInPreviousStrip * i;
+
+				for (var y = 0, j = 0; y < numRowsInStrip, j < numPixels; y++) {
+					for (var x = 0; x < imageWidth; x++, j++) {
+						// Only do this for RGB images.
+						if ((this.fileDirectories[0].PhotometricInterpretation.values[0] === 2) && (this.fileDirectories[0].ExtraSamples === undefined)) {
+							ctx.fillStyle = this.makeRGBFillValue(strips[i][j][0], strips[i][j][1], strips[i][j][2]);
+						}
+
+						ctx.fillRect(x, yPadding + y, 1, 1);
+					}
+				}
+
+				numRowsInPreviousStrip = numRowsInStrip;
 			}
 		}
 
