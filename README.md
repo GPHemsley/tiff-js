@@ -5,6 +5,8 @@ A JavaScript-based parser for the TIFF image format.
 ## Specification ##
 
 * http://partners.adobe.com/public/developer/en/tiff/TIFF6.pdf
+* http://partners.adobe.com/public/developer/en/tiff/TIFFPM6.pdf
+* http://partners.adobe.com/public/developer/en/tiff/TIFFphotoshop.pdf
 
 ## Metadata Tags ##
 
