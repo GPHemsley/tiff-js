@@ -81,7 +81,11 @@ TIFFParser.prototype = {
 			0x011B: 'YResolution',
 
 			// TIFF Extended
+			0x0146: 'BadFaxLines',
+			0x0147: 'CleanFaxData',
 			0x0157: 'ClipPath',
+			0x0148: 'ConsecutiveBadFaxLines',
+			0x01B1: 'Decode',
 			0x01B2: 'DefaultImageColor',
 			0x010D: 'DocumentName',
 			0x0150: 'DotRange',
@@ -93,6 +97,7 @@ TIFFParser.prototype = {
 			0x013D: 'Predictor',
 			0x013F: 'PrimaryChromaticities',
 			0x0214: 'ReferenceBlackWhite',
+			0x0153: 'SampleFormat',
 			0x022F: 'StripRowCounts',
 			0x014A: 'SubIFDs',
 			0x0124: 'T4Options',
@@ -138,6 +143,10 @@ TIFFParser.prototype = {
 			// XMP
 			0x02BC: 'XMP',
 
+			// GDAL
+			0xA480: 'GDAL_METADATA',
+			0xA481: 'GDAL_NODATA',
+
 			// Photoshop
 			0x8649: 'Photoshop',
 		};
@@ -148,6 +157,7 @@ TIFFParser.prototype = {
 			fieldTagName = fieldTagNames[fieldTag];
 		} else {
 			console.log( "Unknown Field Tag:", fieldTag);
+			fieldTagName = "Tag" + fieldTag;
 		}
 
 		return fieldTagName;
