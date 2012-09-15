@@ -306,22 +306,24 @@ TIFFParser.prototype = {
 
 		this.fileDirectories = this.parseFileDirectory(firstIFDByteOffset);
 
-		console.log( this.fileDirectories[0] );
+		var fileDirectory = this.fileDirectories[0];
 
-		var imageWidth = this.fileDirectories[0].ImageWidth.values[0];
-		var imageLength = this.fileDirectories[0].ImageLength.values[0];
+		console.log( fileDirectory );
+
+		var imageWidth = fileDirectory.ImageWidth.values[0];
+		var imageLength = fileDirectory.ImageLength.values[0];
 
 		this.canvas.width = imageWidth;
 		this.canvas.height = imageLength;
 
 		var strips = [];
 
-		var samplesPerPixel = this.fileDirectories[0].SamplesPerPixel.values[0];
+		var samplesPerPixel = fileDirectory.SamplesPerPixel.values[0];
 
 		var bytesPerSampleValues = [];
 		var bytesPerPixel = 0;
 
-		this.fileDirectories[0].BitsPerSample.values.forEach(function(bitsPerSample, i, bitsPerSampleValues) {
+		fileDirectory.BitsPerSample.values.forEach(function(bitsPerSample, i, bitsPerSampleValues) {
 			// XXX: Could we handle odd bit lengths?
 			if ( bitsPerSample % 8 !== 0 ) {
 				throw RangeError("Cannot handle sub-byte bits per sample");
@@ -332,10 +334,10 @@ TIFFParser.prototype = {
 			bytesPerPixel += bytesPerSampleValues[i];
 		}, this);
 
-		var stripByteCountValues = this.fileDirectories[0].StripByteCounts.values;
+		var stripByteCountValues = fileDirectory.StripByteCounts.values;
 
 		// Loop through strips.
-		this.fileDirectories[0].StripOffsets.values.forEach(function(stripOffset, i, stripOffsetValues) {
+		fileDirectory.StripOffsets.values.forEach(function(stripOffset, i, stripOffsetValues) {
 			strips[i] = [];
 
 			var stripByteCount = stripByteCountValues[i];
@@ -364,7 +366,7 @@ TIFFParser.prototype = {
 			var ctx = this.canvas.getContext("2d");
 
 			var numStrips = strips.length;
-			var rowsPerStrip = this.fileDirectories[0].RowsPerStrip.values[0];
+			var rowsPerStrip = fileDirectory.RowsPerStrip.values[0];
 			var imageLengthModRowsPerStrip = imageLength % rowsPerStrip;
 			var rowsInLastStrip = (imageLengthModRowsPerStrip === 0) ? rowsPerStrip : imageLengthModRowsPerStrip;
 
@@ -383,7 +385,7 @@ TIFFParser.prototype = {
 				for (var y = 0, j = 0; y < numRowsInStrip, j < numPixels; y++) {
 					for (var x = 0; x < imageWidth; x++, j++) {
 						// Only do this for RGB images.
-						if ((this.fileDirectories[0].PhotometricInterpretation.values[0] === 2) && (this.fileDirectories[0].ExtraSamples === undefined)) {
+						if ((fileDirectory.PhotometricInterpretation.values[0] === 2) && (fileDirectory.ExtraSamples === undefined)) {
 							ctx.fillStyle = this.makeRGBFillValue(strips[i][j][0], strips[i][j][1], strips[i][j][2]);
 						}
 
