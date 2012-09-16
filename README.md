@@ -17,3 +17,4 @@ A JavaScript-based parser for the TIFF image format.
 
 * http://www.fileformat.info/format/tiff/sample/index.htm
 * http://www.remotesensing.org/libtiff/images.html
+* http://people.sc.fsu.edu/~jburkardt/data/tif/tif.html
