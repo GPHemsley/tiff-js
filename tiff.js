@@ -477,6 +477,13 @@ TIFFParser.prototype = {
 			var numRowsInStrip = rowsPerStrip;
 			var numRowsInPreviousStrip = 0;
 
+			var photometricInterpretation = fileDirectory.PhotometricInterpretation.values[0];
+
+			if (fileDirectory.ColorMap) {
+				var colorMapValues = fileDirectory.ColorMap.values;
+				var colorMapSampleSize = Math.pow(2, bytesPerSampleValues[0] * 8);
+			}
+
 			// Loop through the strips in the image.
 			for (var i = 0; i < numStrips; i++) {
 				// The last strip may be short.
@@ -492,7 +499,7 @@ TIFFParser.prototype = {
 					// Loop through the pixels in the row.
 					for (var x = 0; x < imageWidth; x++, j++) {
 						var pixelSamples = strips[i][j];
-						switch (fileDirectory.PhotometricInterpretation.values[0]) {
+						switch (photometricInterpretation) {
 							// Bilevel or Grayscale
 							// WhiteIsZero
 							case 0:
@@ -520,6 +527,13 @@ TIFFParser.prototype = {
 
 							// RGB Color Palette
 							case 3:
+								if (colorMapValues === undefined) {
+									throw Error("Palette image missing color map");
+								}
+
+								var colorMapIndex = pixelSamples[0];
+
+								ctx.fillStyle = this.makeRGBAFillValue(Math.floor(colorMapValues[colorMapIndex] / 256), Math.floor(colorMapValues[colorMapSampleSize + colorMapIndex] / 256), Math.floor(colorMapValues[(2 * colorMapSampleSize) + colorMapIndex] / 256));
 							break;
 
 							// Transparency mask
