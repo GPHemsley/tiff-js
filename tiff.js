@@ -226,7 +226,14 @@ TIFFParser.prototype = {
 		var fieldValueSize = fieldTypeLength * typeCount;
 
 		if (fieldValueSize <= 4) {
-			fieldValues.push(valueOffset);
+			// The value is stored at the big end of the valueOffset.
+			if (this.littleEndian === false) {
+				var value = valueOffset >>> ((4 - fieldTypeLength) * 8);
+			} else {
+				var value = valueOffset;
+			}
+
+			fieldValues.push(value);
 		} else {
 			for (var i = 0; i < typeCount; i++) {
 				var indexOffset = fieldTypeLength * i;
@@ -318,6 +325,8 @@ TIFFParser.prototype = {
 
 		var strips = [];
 
+		var compression = (fileDirectory.Compression) ? fileDirectory.Compression.values[0] : 1;
+
 		var samplesPerPixel = fileDirectory.SamplesPerPixel.values[0];
 
 		var bytesPerSampleValues = [];
@@ -334,27 +343,119 @@ TIFFParser.prototype = {
 			bytesPerPixel += bytesPerSampleValues[i];
 		}, this);
 
+		var stripOffsetValues = fileDirectory.StripOffsets.values;
 		var stripByteCountValues = fileDirectory.StripByteCounts.values;
 
-		// Loop through strips.
-		fileDirectory.StripOffsets.values.forEach(function(stripOffset, i, stripOffsetValues) {
+		// Loop through strips and decompress as necessary.
+		stripOffsetValues.forEach(function(stripOffset, i, stripOffsetValues) {
 			strips[i] = [];
 
 			var stripByteCount = stripByteCountValues[i];
 
 			// Loop through pixels.
-			for (var j = 0; j < stripByteCount; j += bytesPerPixel) {
-				// Loop through samples (sub-pixels).
-				for (var k = 0, pixel = []; k < samplesPerPixel; k++) {
-					var sampleOffset = bytesPerSampleValues[k] * k;
-					pixel.push(this.getBytes(bytesPerSampleValues[k], stripOffset + j + sampleOffset));
+			for (var j = 0, jIncrement = 1, getHeader = true, pixel = [], numBytes = 0, sample = 0, currentSample = 0; j < stripByteCount; j += jIncrement) {
+				// Decompress strip.
+				switch (compression) {
+					// Uncompressed
+					case 1:
+						// Loop through samples (sub-pixels).
+						for (var m = 0, pixel = []; m < samplesPerPixel; m++) {
+							var sampleOffset = bytesPerSampleValues[m] * m;
 
-					/*if (this.littleEndian) {
-						pixel.reverse();
-					}*/
+							pixel.push(this.getBytes(bytesPerSampleValues[m], stripOffset + j + sampleOffset));
+						}
+
+						strips[i].push(pixel);
+
+						jIncrement = bytesPerPixel;
+					break;
+
+					// CITT Group 3 1-Dimensional Modified Huffman run-length encoding
+					case 2:
+						// XXX: Use PDF.js code?
+					break;
+
+					// Group 3 Fax
+					case 3:
+						// XXX: Use PDF.js code?
+					break;
+
+					// Group 4 Fax
+					case 4:
+						// XXX: Use PDF.js code?
+					break;
+
+					// LZW
+					case 5:
+						// XXX: Use PDF.js code?
+					break;
+
+					// JPEG
+					case 6:
+						// XXX: Use PDF.js code?
+					break;
+
+					// PackBits
+					case 32773:
+						// Are we ready for a new block?
+						if (getHeader) {
+							getHeader = false;
+
+							var blockLength = 1;
+							var iterations = 1;
+
+							// The header byte is signed.
+							var header = this.tiffDataView.getInt8(stripOffset + j, this.littleEndian);
+
+							if ((header >= 0) && (header <= 127)) { // Normal pixels.
+								blockLength = header + 1;
+							} else if ((header >= -127) && (header <= -1)) { // Collapsed pixels.
+								iterations = -header + 1;
+							} else /*if (header === -128)*/ { // Placeholder byte?
+								getHeader = true;
+							}
+						} else {
+							var currentByte = this.getBytes(1, stripOffset + j);
+
+							// Duplicate bytes, if necessary.
+							for (var m = 0; m < iterations; m++) {
+								// We're reading one byte at a time, so we need to handle multi-byte samples.
+								currentSample = (currentSample << (8 * numBytes)) | currentByte;
+								numBytes++;
+
+								// Is our sample complete?
+								if (numBytes === bytesPerSampleValues[sample]) {
+									pixel.push(currentSample);
+									currentSample = numBytes = 0;
+									sample++;
+								}
+
+								// Is our pixel complete?
+								if (sample === samplesPerPixel)
+								{
+									strips[i].push(pixel);
+
+									pixel = [];
+									sample = 0;
+								}
+							}
+
+							blockLength--;
+
+							// Is our block complete?
+							if (blockLength === 0) {
+								getHeader = true;
+							}
+						}
+
+						jIncrement = 1;
+					break;
+
+					// Unknown compression algorithm
+					default:
+						// Do not attempt to parse the image data.
+					break;
 				}
-
-				strips[i].push(pixel);
 			}
 
 //			console.log( strips[i] );
@@ -376,6 +477,7 @@ TIFFParser.prototype = {
 			var numRowsInStrip = rowsPerStrip;
 			var numRowsInPreviousStrip = 0;
 
+			// Loop through the strips in the image.
 			for (var i = 0; i < numStrips; i++) {
 				// The last strip may be short.
 				if ((i + 1) === numStrips) {
@@ -385,7 +487,9 @@ TIFFParser.prototype = {
 				var numPixels = strips[i].length;
 				var yPadding = numRowsInPreviousStrip * i;
 
+				// Loop through the rows in the strip.
 				for (var y = 0, j = 0; y < numRowsInStrip, j < numPixels; y++) {
+					// Loop through the pixels in the row.
 					for (var x = 0; x < imageWidth; x++, j++) {
 						var pixelSamples = strips[i][j];
 						switch (fileDirectory.PhotometricInterpretation.values[0]) {
