@@ -390,8 +390,13 @@ TIFFParser.prototype = {
 						// XXX: Use PDF.js code?
 					break;
 
-					// JPEG
+					// Old-style JPEG (TIFF 6.0)
 					case 6:
+						// XXX: Use PDF.js code?
+					break;
+
+					// New-style JPEG (TIFF Specification Supplement 2)
+					case 7:
 						// XXX: Use PDF.js code?
 					break;
 
