@@ -344,7 +344,20 @@ TIFFParser.prototype = {
 		}, this);
 
 		var stripOffsetValues = fileDirectory.StripOffsets.values;
-		var stripByteCountValues = fileDirectory.StripByteCounts.values;
+
+		// StripByteCounts is supposed to be required, but see if we can recover anyway.
+		if (fileDirectory.StripByteCounts) {
+			var stripByteCountValues = fileDirectory.StripByteCounts.values;
+		} else {
+			console.log("Missing StripByteCounts!");
+
+			// Infer StripByteCounts, if possible.
+			if (stripOffsetValues.length === 1) {
+				var stripByteCountValues = [imageWidth * imageLength * bytesPerPixel];
+			} else {
+				throw Error("Cannot recover from missing StripByteCounts");
+			}
+		}
 
 		// Loop through strips and decompress as necessary.
 		stripOffsetValues.forEach(function(stripOffset, i, stripOffsetValues) {
@@ -474,8 +487,15 @@ TIFFParser.prototype = {
 			// Set a default fill style.
 			ctx.fillStyle = this.makeRGBAFillValue(255, 255, 255, 0);
 
+			// If RowsPerStrip is missing, the whole image is in one strip.
+			if (fileDirectory.RowsPerStrip) {
+				var rowsPerStrip = fileDirectory.RowsPerStrip.values[0];
+			} else {
+				var rowsPerStrip = imageLength;
+			}
+
 			var numStrips = strips.length;
-			var rowsPerStrip = fileDirectory.RowsPerStrip.values[0];
+
 			var imageLengthModRowsPerStrip = imageLength % rowsPerStrip;
 			var rowsInLastStrip = (imageLengthModRowsPerStrip === 0) ? rowsPerStrip : imageLengthModRowsPerStrip;
 
