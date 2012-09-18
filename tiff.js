@@ -504,6 +504,14 @@ TIFFParser.prototype = {
 
 			var photometricInterpretation = fileDirectory.PhotometricInterpretation.values[0];
 
+			var extraSamplesValues = [];
+			var numExtraSamples = 0;
+
+			if (fileDirectory.ExtraSamples) {
+				extraSamplesValues = fileDirectory.ExtraSamples.values;
+				numExtraSamples = extraSamplesValues.length;
+			}
+
 			if (fileDirectory.ColorMap) {
 				var colorMapValues = fileDirectory.ColorMap.values;
 				var colorMapSampleSize = Math.pow(2, bytesPerSampleValues[0] * 8);
@@ -524,6 +532,22 @@ TIFFParser.prototype = {
 					// Loop through the pixels in the row.
 					for (var x = 0; x < imageWidth; x++, j++) {
 						var pixelSamples = strips[i][j];
+
+						var red = 0;
+						var green = 0;
+						var blue = 0;
+						var opacity = 1.0;
+
+						if (numExtraSamples > 0) {
+							for (var k = 0; k < numExtraSamples; k++) {
+								if (extraSamplesValues[k] === 1) {
+									opacity = pixelSamples[3 + k] / 256;
+
+									break;
+								}
+							}
+						}
+
 						switch (photometricInterpretation) {
 							// Bilevel or Grayscale
 							// WhiteIsZero
@@ -536,18 +560,14 @@ TIFFParser.prototype = {
 							// Bilevel or Grayscale
 							// BlackIsZero
 							case 1:
-								var shade = pixelSamples[0];
-
-								ctx.fillStyle = this.makeRGBAFillValue(shade, shade, shade);
+								red = green = blue = pixelSamples[0];
 							break;
 
 							// RGB Full Color
 							case 2:
-								if (fileDirectory.ExtraSamples) {
-									//ctx.fillStyle = ;
-								} else {
-									ctx.fillStyle = this.makeRGBAFillValue(pixelSamples[0], pixelSamples[1], pixelSamples[2]);
-								}
+								red = pixelSamples[0];
+								green = pixelSamples[1];
+								blue = pixelSamples[2];
 							break;
 
 							// RGB Color Palette
@@ -558,7 +578,9 @@ TIFFParser.prototype = {
 
 								var colorMapIndex = pixelSamples[0];
 
-								ctx.fillStyle = this.makeRGBAFillValue(Math.floor(colorMapValues[colorMapIndex] / 256), Math.floor(colorMapValues[colorMapSampleSize + colorMapIndex] / 256), Math.floor(colorMapValues[(2 * colorMapSampleSize) + colorMapIndex] / 256));
+								red = Math.floor(colorMapValues[colorMapIndex] / 256);
+								green = Math.floor(colorMapValues[colorMapSampleSize + colorMapIndex] / 256);
+								blue = Math.floor(colorMapValues[(2 * colorMapSampleSize) + colorMapIndex] / 256);
 							break;
 
 							// Transparency mask
@@ -582,6 +604,7 @@ TIFFParser.prototype = {
 							break;
 						}
 
+						ctx.fillStyle = this.makeRGBAFillValue(red, green, blue, opacity);
 						ctx.fillRect(x, yPadding + y, 1, 1);
 					}
 				}
