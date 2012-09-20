@@ -205,17 +205,20 @@ TIFFParser.prototype = {
 	},
 
 	getBytes: function (numBytes, offset) {
-		if (numBytes === 1) {
+		if (numBytes <= 0) {
+			console.log( numBytes, offset );
+			throw RangeError("No bytes requested");
+		} else if (numBytes <= 1) {
 			return this.tiffDataView.getUint8(offset, this.littleEndian);
-		} else if (numBytes === 2) {
+		} else if (numBytes <= 2) {
 			return this.tiffDataView.getUint16(offset, this.littleEndian);
-		} else if (numBytes === 4) {
+		} else if (numBytes <= 3) {
+			return this.tiffDataView.getUint32(offset, this.littleEndian) >>> 8;
+		} else if (numBytes <= 4) {
 			return this.tiffDataView.getUint32(offset, this.littleEndian);
-//		} else if (numBytes === 8) {
-//			return this.tiffDataView.getUint64(offset, this.littleEndian);
 		} else {
 			console.log( numBytes, offset );
-			throw RangeError("Number of bytes requested out of range");
+			throw RangeError("Too many bytes requested");
 		}
 	},
 
@@ -344,6 +347,7 @@ TIFFParser.prototype = {
 		}, this);
 
 		var stripOffsetValues = fileDirectory.StripOffsets.values;
+		var numStripOffsetValues = stripOffsetValues.length;
 
 		// StripByteCounts is supposed to be required, but see if we can recover anyway.
 		if (fileDirectory.StripByteCounts) {
@@ -352,7 +356,7 @@ TIFFParser.prototype = {
 			console.log("Missing StripByteCounts!");
 
 			// Infer StripByteCounts, if possible.
-			if (stripOffsetValues.length === 1) {
+			if (numStripOffsetValues === 1) {
 				var stripByteCountValues = [imageWidth * imageLength * bytesPerPixel];
 			} else {
 				throw Error("Cannot recover from missing StripByteCounts");
@@ -360,7 +364,8 @@ TIFFParser.prototype = {
 		}
 
 		// Loop through strips and decompress as necessary.
-		stripOffsetValues.forEach(function(stripOffset, i, stripOffsetValues) {
+		for (var i = 0; i < numStripOffsetValues; i++) {
+			var stripOffset = stripOffsetValues[i];
 			strips[i] = [];
 
 			var stripByteCount = stripByteCountValues[i];
@@ -477,7 +482,7 @@ TIFFParser.prototype = {
 			}
 
 //			console.log( strips[i] );
-		}, this);
+		}
 
 //		console.log( strips );
 
