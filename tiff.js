@@ -266,6 +266,16 @@ TIFFParser.prototype = {
 		return fieldValues;
 	},
 
+	clampColorSample: function(colorSample, bytesPerSample) {
+		var clampedColorValue = colorSample;
+
+		for (var i = bytesPerSample; i > 1; i--) {
+			clampedColorValue = colorSample / 256;
+		}
+
+		return Math.floor(clampedColorValue);
+	},
+
 	makeRGBAFillValue: function(r, g, b, a = 1.0) {
 		return "rgba(" + r + ", " + g + ", " + b + ", " + a + ")";
 	},
@@ -565,14 +575,14 @@ TIFFParser.prototype = {
 							// Bilevel or Grayscale
 							// BlackIsZero
 							case 1:
-								red = green = blue = pixelSamples[0];
+								red = green = blue = this.clampColorSample(pixelSamples[0], bytesPerSampleValues[0]);
 							break;
 
 							// RGB Full Color
 							case 2:
-								red = pixelSamples[0];
-								green = pixelSamples[1];
-								blue = pixelSamples[2];
+								red = this.clampColorSample(pixelSamples[0], bytesPerSampleValues[0]);
+								green = this.clampColorSample(pixelSamples[1], bytesPerSampleValues[1]);
+								blue = this.clampColorSample(pixelSamples[2], bytesPerSampleValues[2]);
 							break;
 
 							// RGB Color Palette
@@ -583,29 +593,34 @@ TIFFParser.prototype = {
 
 								var colorMapIndex = pixelSamples[0];
 
-								red = Math.floor(colorMapValues[colorMapIndex] / 256);
-								green = Math.floor(colorMapValues[colorMapSampleSize + colorMapIndex] / 256);
-								blue = Math.floor(colorMapValues[(2 * colorMapSampleSize) + colorMapIndex] / 256);
+								red = this.clampColorSample(colorMapValues[colorMapIndex], bytesPerSampleValues[0]);
+								green = this.clampColorSample(colorMapValues[colorMapSampleSize + colorMapIndex], bytesPerSampleValues[1]);
+								blue = this.clampColorSample(colorMapValues[(2 * colorMapSampleSize) + colorMapIndex], bytesPerSampleValues[2]);
 							break;
 
 							// Transparency mask
 							case 4:
+//								console.log( 'Not Yet Implemented: Transparency mask' );
 							break;
 
 							// CMYK
 							case 5:
+//								console.log( 'Not Yet Implemented: CMYK' );
 							break;
 
 							// YCbCr
 							case 6:
+//								console.log( 'Not Yet Implemented: YCbCr' );
 							break;
 
 							// CIELab
 							case 8:
+//								console.log( 'Not Yet Implemented: CIELab' );
 							break;
 
 							// Unknown Photometric Interpretation
 							default:
+//								console.log( 'Unknown Photometric Interpretation:', photometricInterpretation );
 							break;
 						}
 
