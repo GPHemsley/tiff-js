@@ -204,6 +204,34 @@ TIFFParser.prototype = {
 		return fieldTypeLength;
 	},
 
+	getBits: function (numBits, byteOffset, bitOffset = 0) {
+		var extraBytes = Math.floor(bitOffset / 8);
+		var newByteOffset = byteOffset + extraBytes;
+		var totalBits = bitOffset + numBits;
+
+		if (totalBits <= 0) {
+			console.log( numBits, byteOffset, bitOffset );
+			throw RangeError("No bits requested");
+		} else if (totalBits <= 8) {
+			var rawBits = this.tiffDataView.getUint8(newByteOffset, this.littleEndian);
+
+			var shiftRight = 8 - numBits;
+		} else if (totalBits <= 16) {
+			var rawBits = this.tiffDataView.getUint16(newByteOffset, this.littleEndian);
+
+			var shiftRight = 16 - numBits;
+		} else if (totalBits <= 32) {
+			var rawBits = this.tiffDataView.getUint32(newByteOffset, this.littleEndian);
+
+			var shiftRight = 32 - numBits;
+		} else {
+			console.log( numBits, byteOffset, bitOffset );
+			throw RangeError("Too many bits requested");
+		}
+
+		return ((rawBits << bitOffset) >>> shiftRight);
+	},
+
 	getBytes: function (numBytes, offset) {
 		if (numBytes <= 0) {
 			console.log( numBytes, offset );
@@ -266,14 +294,10 @@ TIFFParser.prototype = {
 		return fieldValues;
 	},
 
-	clampColorSample: function(colorSample, bytesPerSample) {
-		var clampedColorValue = colorSample;
+	clampColorSample: function(colorSample, bitsPerSample) {
+		var multiplier = Math.pow(2, 8 - bitsPerSample);
 
-		for (var i = bytesPerSample; i > 1; i--) {
-			clampedColorValue = colorSample / 256;
-		}
-
-		return Math.floor(clampedColorValue);
+		return (colorSample * multiplier) + (multiplier - 1);
 	},
 
 	makeRGBAFillValue: function(r, g, b, a = 1.0) {
@@ -604,32 +628,14 @@ TIFFParser.prototype = {
 							// Bilevel or Grayscale
 							// BlackIsZero
 							case 1:
-								if (sampleProperties[0].hasBytesPerSample) {
-									red = green = blue = this.clampColorSample(pixelSamples[0], sampleProperties[0].bytesPerSample);
-								} else {
-									throw RangeError("Cannot handle sub-byte bits per sample");
-								}
+								red = green = blue = this.clampColorSample(pixelSamples[0], sampleProperties[0].bitsPerSample);
 							break;
 
 							// RGB Full Color
 							case 2:
-								if (sampleProperties[0].hasBytesPerSample) {
-									red = this.clampColorSample(pixelSamples[0], sampleProperties[0].bytesPerSample);
-								} else {
-									throw RangeError("Cannot handle sub-byte bits per sample");
-								}
-
-								if (sampleProperties[1].hasBytesPerSample) {
-									green = this.clampColorSample(pixelSamples[1], sampleProperties[1].bytesPerSample);
-								} else {
-									throw RangeError("Cannot handle sub-byte bits per sample");
-								}
-
-								if (sampleProperties[2].hasBytesPerSample) {
-									blue = this.clampColorSample(pixelSamples[2], sampleProperties[2].bytesPerSample);
-								} else {
-									throw RangeError("Cannot handle sub-byte bits per sample");
-								}
+								red = this.clampColorSample(pixelSamples[0], sampleProperties[0].bitsPerSample);
+								green = this.clampColorSample(pixelSamples[1], sampleProperties[1].bitsPerSample);
+								blue = this.clampColorSample(pixelSamples[2], sampleProperties[2].bitsPerSample);
 							break;
 
 							// RGB Color Palette
@@ -640,9 +646,9 @@ TIFFParser.prototype = {
 
 								var colorMapIndex = pixelSamples[0];
 
-								red = this.clampColorSample(colorMapValues[colorMapIndex], 2);
-								green = this.clampColorSample(colorMapValues[colorMapSampleSize + colorMapIndex], 2);
-								blue = this.clampColorSample(colorMapValues[(2 * colorMapSampleSize) + colorMapIndex], 2);
+								red = this.clampColorSample(colorMapValues[colorMapIndex], sampleProperties[0].bitsPerSample);
+								green = this.clampColorSample(colorMapValues[colorMapSampleSize + colorMapIndex], sampleProperties[0].bitsPerSample);
+								blue = this.clampColorSample(colorMapValues[(2 * colorMapSampleSize) + colorMapIndex], sampleProperties[0].bitsPerSample);
 							break;
 
 							// Transparency mask
