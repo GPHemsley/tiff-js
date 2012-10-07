@@ -297,7 +297,7 @@ TIFFParser.prototype = {
 	clampColorSample: function(colorSample, bitsPerSample) {
 		var multiplier = Math.pow(2, 8 - bitsPerSample);
 
-		return (colorSample * multiplier) + (multiplier - 1);
+		return Math.floor((colorSample * multiplier) + (multiplier - 1));
 	},
 
 	makeRGBAFillValue: function(r, g, b, a = 1.0) {
@@ -646,9 +646,9 @@ TIFFParser.prototype = {
 
 								var colorMapIndex = pixelSamples[0];
 
-								red = this.clampColorSample(colorMapValues[colorMapIndex], sampleProperties[0].bitsPerSample);
-								green = this.clampColorSample(colorMapValues[colorMapSampleSize + colorMapIndex], sampleProperties[0].bitsPerSample);
-								blue = this.clampColorSample(colorMapValues[(2 * colorMapSampleSize) + colorMapIndex], sampleProperties[0].bitsPerSample);
+								red = this.clampColorSample(colorMapValues[colorMapIndex], 16);
+								green = this.clampColorSample(colorMapValues[colorMapSampleSize + colorMapIndex], 16);
+								blue = this.clampColorSample(colorMapValues[(2 * colorMapSampleSize) + colorMapIndex], 16);
 							break;
 
 							// Transparency mask
