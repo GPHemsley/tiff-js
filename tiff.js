@@ -342,19 +342,30 @@ TIFFParser.prototype = {
 
 		var samplesPerPixel = fileDirectory.SamplesPerPixel.values[0];
 
-		var bytesPerSampleValues = [];
-		var bytesPerPixel = 0;
+		var sampleProperties = [];
+
+		var bitsPerPixel = 0;
+		var hasBytesPerPixel = false;
 
 		fileDirectory.BitsPerSample.values.forEach(function(bitsPerSample, i, bitsPerSampleValues) {
-			// XXX: Could we handle odd bit lengths?
-			if ( bitsPerSample % 8 !== 0 ) {
-				throw RangeError("Cannot handle sub-byte bits per sample");
-				return;
+			sampleProperties[i] = {
+				'bitsPerSample': bitsPerSample,
+				'hasBytesPerSample': false,
+				'bytesPerSample': undefined,
+			};
+
+			if ((bitsPerSample % 8) === 0) {
+				sampleProperties[i].hasBytesPerSample = true;
+				sampleProperties[i].bytesPerSample = bitsPerSample / 8;
 			}
 
-			bytesPerSampleValues[i] = bitsPerSample / 8;
-			bytesPerPixel += bytesPerSampleValues[i];
+			bitsPerPixel += bitsPerSample;
 		}, this);
+
+		if ((bitsPerPixel % 8) === 0) {
+			hasBytesPerPixel = true;
+			var bytesPerPixel = bitsPerPixel / 8;
+		}
 
 		var stripOffsetValues = fileDirectory.StripOffsets.values;
 		var numStripOffsetValues = stripOffsetValues.length;
@@ -367,7 +378,11 @@ TIFFParser.prototype = {
 
 			// Infer StripByteCounts, if possible.
 			if (numStripOffsetValues === 1) {
-				var stripByteCountValues = [imageWidth * imageLength * bytesPerPixel];
+				if (hasBytesPerPixel) {
+					var stripByteCountValues = [imageWidth * imageLength * bytesPerPixel];
+				} else {
+					throw RangeError("Cannot handle sub-byte bits per pixel");
+				}
 			} else {
 				throw Error("Cannot recover from missing StripByteCounts");
 			}
@@ -388,14 +403,22 @@ TIFFParser.prototype = {
 					case 1:
 						// Loop through samples (sub-pixels).
 						for (var m = 0, pixel = []; m < samplesPerPixel; m++) {
-							var sampleOffset = bytesPerSampleValues[m] * m;
+							if (sampleProperties[m].hasBytesPerSample) {
+								var sampleOffset = sampleProperties[m].bytesPerSample * m;
 
-							pixel.push(this.getBytes(bytesPerSampleValues[m], stripOffset + j + sampleOffset));
+								pixel.push(this.getBytes(sampleProperties[m].bytesPerSample, stripOffset + j + sampleOffset));
+							} else {
+								throw RangeError("Cannot handle sub-byte bits per sample");
+							}
 						}
 
 						strips[i].push(pixel);
 
-						jIncrement = bytesPerPixel;
+						if (hasBytesPerPixel) {
+							jIncrement = bytesPerPixel;
+						} else {
+							throw RangeError("Cannot handle sub-byte bits per pixel");
+						}
 					break;
 
 					// CITT Group 3 1-Dimensional Modified Huffman run-length encoding
@@ -452,15 +475,19 @@ TIFFParser.prototype = {
 
 							// Duplicate bytes, if necessary.
 							for (var m = 0; m < iterations; m++) {
-								// We're reading one byte at a time, so we need to handle multi-byte samples.
-								currentSample = (currentSample << (8 * numBytes)) | currentByte;
-								numBytes++;
+								if (sampleProperties[sample].hasBytesPerSample) {
+									// We're reading one byte at a time, so we need to handle multi-byte samples.
+									currentSample = (currentSample << (8 * numBytes)) | currentByte;
+									numBytes++;
 
-								// Is our sample complete?
-								if (numBytes === bytesPerSampleValues[sample]) {
-									pixel.push(currentSample);
-									currentSample = numBytes = 0;
-									sample++;
+									// Is our sample complete?
+									if (numBytes === sampleProperties[sample].bytesPerSample) {
+										pixel.push(currentSample);
+										currentSample = numBytes = 0;
+										sample++;
+									}
+								} else {
+									throw RangeError("Cannot handle sub-byte bits per sample");
 								}
 
 								// Is our pixel complete?
@@ -529,7 +556,7 @@ TIFFParser.prototype = {
 
 			if (fileDirectory.ColorMap) {
 				var colorMapValues = fileDirectory.ColorMap.values;
-				var colorMapSampleSize = Math.pow(2, bytesPerSampleValues[0] * 8);
+				var colorMapSampleSize = Math.pow(2, sampleProperties[0].bitsPerSample);
 			}
 
 			// Loop through the strips in the image.
@@ -567,7 +594,9 @@ TIFFParser.prototype = {
 							// Bilevel or Grayscale
 							// WhiteIsZero
 							case 0:
-								var invertValue = Math.pow(0x10, bytesPerSampleValues[0] * 2);
+								if (sampleProperties[0].hasBytesPerSample) {
+									var invertValue = Math.pow(0x10, sampleProperties[0].bytesPerSample * 2);
+								}
 
 								// Invert samples.
 								pixelSamples.forEach(function(sample, index, samples) { samples[index] = invertValue - sample; });
@@ -575,14 +604,32 @@ TIFFParser.prototype = {
 							// Bilevel or Grayscale
 							// BlackIsZero
 							case 1:
-								red = green = blue = this.clampColorSample(pixelSamples[0], bytesPerSampleValues[0]);
+								if (sampleProperties[0].hasBytesPerSample) {
+									red = green = blue = this.clampColorSample(pixelSamples[0], sampleProperties[0].bytesPerSample);
+								} else {
+									throw RangeError("Cannot handle sub-byte bits per sample");
+								}
 							break;
 
 							// RGB Full Color
 							case 2:
-								red = this.clampColorSample(pixelSamples[0], bytesPerSampleValues[0]);
-								green = this.clampColorSample(pixelSamples[1], bytesPerSampleValues[1]);
-								blue = this.clampColorSample(pixelSamples[2], bytesPerSampleValues[2]);
+								if (sampleProperties[0].hasBytesPerSample) {
+									red = this.clampColorSample(pixelSamples[0], sampleProperties[0].bytesPerSample);
+								} else {
+									throw RangeError("Cannot handle sub-byte bits per sample");
+								}
+
+								if (sampleProperties[1].hasBytesPerSample) {
+									green = this.clampColorSample(pixelSamples[1], sampleProperties[1].bytesPerSample);
+								} else {
+									throw RangeError("Cannot handle sub-byte bits per sample");
+								}
+
+								if (sampleProperties[2].hasBytesPerSample) {
+									blue = this.clampColorSample(pixelSamples[2], sampleProperties[2].bytesPerSample);
+								} else {
+									throw RangeError("Cannot handle sub-byte bits per sample");
+								}
 							break;
 
 							// RGB Color Palette
@@ -593,9 +640,9 @@ TIFFParser.prototype = {
 
 								var colorMapIndex = pixelSamples[0];
 
-								red = this.clampColorSample(colorMapValues[colorMapIndex], bytesPerSampleValues[0]);
-								green = this.clampColorSample(colorMapValues[colorMapSampleSize + colorMapIndex], bytesPerSampleValues[1]);
-								blue = this.clampColorSample(colorMapValues[(2 * colorMapSampleSize) + colorMapIndex], bytesPerSampleValues[2]);
+								red = this.clampColorSample(colorMapValues[colorMapIndex], 2);
+								green = this.clampColorSample(colorMapValues[colorMapSampleSize + colorMapIndex], 2);
+								blue = this.clampColorSample(colorMapValues[(2 * colorMapSampleSize) + colorMapIndex], 2);
 							break;
 
 							// Transparency mask
