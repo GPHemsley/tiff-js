@@ -208,28 +208,32 @@ TIFFParser.prototype = {
 		var extraBytes = Math.floor(bitOffset / 8);
 		var newByteOffset = byteOffset + extraBytes;
 		var totalBits = bitOffset + numBits;
+		var shiftRight = 32 - numBits;
 
 		if (totalBits <= 0) {
 			console.log( numBits, byteOffset, bitOffset );
 			throw RangeError("No bits requested");
 		} else if (totalBits <= 8) {
+			var shiftLeft = 24 + bitOffset;
 			var rawBits = this.tiffDataView.getUint8(newByteOffset, this.littleEndian);
-
-			var shiftRight = 8 - numBits;
 		} else if (totalBits <= 16) {
+			var shiftLeft = 16 + bitOffset;
 			var rawBits = this.tiffDataView.getUint16(newByteOffset, this.littleEndian);
-
-			var shiftRight = 16 - numBits;
 		} else if (totalBits <= 32) {
+			var shiftLeft = bitOffset;
 			var rawBits = this.tiffDataView.getUint32(newByteOffset, this.littleEndian);
-
-			var shiftRight = 32 - numBits;
 		} else {
 			console.log( numBits, byteOffset, bitOffset );
 			throw RangeError("Too many bits requested");
 		}
 
-		return ((rawBits << bitOffset) >>> shiftRight);
+		var chunkInfo = {
+			'bits': ((rawBits << shiftLeft) >>> shiftRight),
+			'byteOffset': newByteOffset + Math.floor(totalBits / 8),
+			'bitOffset': totalBits % 8,
+		};
+
+		return chunkInfo;
 	},
 
 	getBytes: function (numBytes, offset) {
@@ -320,8 +324,6 @@ TIFFParser.prototype = {
 
 			var fieldValues = this.getFieldValues(fieldTagName, fieldTypeName, typeCount, valueOffset);
 
-//			console.log( fieldTagName + ' (0x' + fieldTag.toString(16).toUpperCase() + ')', fieldTypeName + ' (' + fieldType + ')', typeCount, valueOffset, '0x' + valueOffset.toString(16).toUpperCase() );
-
 			tiffFields[fieldTagName] = { 'type': fieldTypeName, 'values': fieldValues };
 		}
 
@@ -402,11 +404,7 @@ TIFFParser.prototype = {
 
 			// Infer StripByteCounts, if possible.
 			if (numStripOffsetValues === 1) {
-				if (hasBytesPerPixel) {
-					var stripByteCountValues = [imageWidth * imageLength * bytesPerPixel];
-				} else {
-					throw RangeError("Cannot handle sub-byte bits per pixel");
-				}
+				var stripByteCountValues = [Math.ceil((imageWidth * imageLength * bitsPerPixel) / 8)];
 			} else {
 				throw Error("Cannot recover from missing StripByteCounts");
 			}
@@ -420,7 +418,7 @@ TIFFParser.prototype = {
 			var stripByteCount = stripByteCountValues[i];
 
 			// Loop through pixels.
-			for (var j = 0, jIncrement = 1, getHeader = true, pixel = [], numBytes = 0, sample = 0, currentSample = 0; j < stripByteCount; j += jIncrement) {
+			for (var byteOffset = 0, bitOffset = 0, jIncrement = 1, getHeader = true, pixel = [], numBytes = 0, sample = 0, currentSample = 0; byteOffset < stripByteCount; byteOffset += jIncrement) {
 				// Decompress strip.
 				switch (compression) {
 					// Uncompressed
@@ -428,10 +426,18 @@ TIFFParser.prototype = {
 						// Loop through samples (sub-pixels).
 						for (var m = 0, pixel = []; m < samplesPerPixel; m++) {
 							if (sampleProperties[m].hasBytesPerSample) {
+								// XXX: This is wrong!
 								var sampleOffset = sampleProperties[m].bytesPerSample * m;
 
-								pixel.push(this.getBytes(sampleProperties[m].bytesPerSample, stripOffset + j + sampleOffset));
+								pixel.push(this.getBytes(sampleProperties[m].bytesPerSample, stripOffset + byteOffset + sampleOffset));
 							} else {
+								var sampleInfo = this.getBits(sampleProperties[m].bitsPerSample, stripOffset + byteOffset, bitOffset);
+
+								pixel.push(sampleInfo.bits);
+
+								byteOffset = sampleInfo.byteOffset - stripOffset;
+								bitOffset = sampleInfo.bitOffset;
+
 								throw RangeError("Cannot handle sub-byte bits per sample");
 							}
 						}
@@ -441,6 +447,8 @@ TIFFParser.prototype = {
 						if (hasBytesPerPixel) {
 							jIncrement = bytesPerPixel;
 						} else {
+							jIncrement = 0;
+
 							throw RangeError("Cannot handle sub-byte bits per pixel");
 						}
 					break;
@@ -485,7 +493,7 @@ TIFFParser.prototype = {
 							var iterations = 1;
 
 							// The header byte is signed.
-							var header = this.tiffDataView.getInt8(stripOffset + j, this.littleEndian);
+							var header = this.tiffDataView.getInt8(stripOffset + byteOffset, this.littleEndian);
 
 							if ((header >= 0) && (header <= 127)) { // Normal pixels.
 								blockLength = header + 1;
@@ -495,7 +503,7 @@ TIFFParser.prototype = {
 								getHeader = true;
 							}
 						} else {
-							var currentByte = this.getBytes(1, stripOffset + j);
+							var currentByte = this.getBytes(1, stripOffset + byteOffset);
 
 							// Duplicate bytes, if necessary.
 							for (var m = 0; m < iterations; m++) {
@@ -653,27 +661,27 @@ TIFFParser.prototype = {
 
 							// Transparency mask
 							case 4:
-//								console.log( 'Not Yet Implemented: Transparency mask' );
+								throw RangeError( 'Not Yet Implemented: Transparency mask' );
 							break;
 
 							// CMYK
 							case 5:
-//								console.log( 'Not Yet Implemented: CMYK' );
+								throw RangeError( 'Not Yet Implemented: CMYK' );
 							break;
 
 							// YCbCr
 							case 6:
-//								console.log( 'Not Yet Implemented: YCbCr' );
+								throw RangeError( 'Not Yet Implemented: YCbCr' );
 							break;
 
 							// CIELab
 							case 8:
-//								console.log( 'Not Yet Implemented: CIELab' );
+								throw RangeError( 'Not Yet Implemented: CIELab' );
 							break;
 
 							// Unknown Photometric Interpretation
 							default:
-//								console.log( 'Unknown Photometric Interpretation:', photometricInterpretation );
+								throw RangeError( 'Unknown Photometric Interpretation:', photometricInterpretation );
 							break;
 						}
 
