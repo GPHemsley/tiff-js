@@ -10,9 +10,10 @@
 	<script type="text/javascript">
 		"use strict";
 		var prepareTIFF = function() {
-			var file = document.getElementById( "tiff-file" ).files[0];
+			var files = document.getElementById( "tiff-file" ).files;
+			var file = files[0];
 
-			if (file.type !== 'image/tiff') {
+			if (files.length < 1 || file.type !== 'image/tiff') {
 				return;
 			}
 
@@ -33,7 +34,7 @@
 		}
 	</script>
 </head>
-<body>
+<body onload="prepareTIFF();">
 
 <form name="tiff-parser" method="post" enctype="multipart/form-data" style="margin: 10% auto auto; text-align: center;">
 
@@ -42,7 +43,7 @@
 
 </form>
 
-<canvas id="tiff-image" style="display: block; max-width: 95%; margin: 2em auto; border: 1px dashed magenta; padding: 0px; background-color: black"></canvas>
+<canvas id="tiff-image" style="display: block; max-width: 95%; margin: 2em auto; border: 1px dashed magenta; padding: 0px; background-color: #FFEEFF;"></canvas>
 
 </body>
 </html>
