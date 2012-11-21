@@ -621,6 +621,7 @@ TIFFParser.prototype = {
 						if (numExtraSamples > 0) {
 							for (var k = 0; k < numExtraSamples; k++) {
 								if (extraSamplesValues[k] === 1) {
+									// Clamp opacity to the range [0,1].
 									opacity = pixelSamples[3 + k] / 256;
 
 									break;
