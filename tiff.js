@@ -619,9 +619,14 @@ TIFFParser.prototype = {
 						var opacity = 1.0;
 
 						if (numExtraSamples > 0) {
-							// Opacity is always the 4th sample.
-							// Clamp opacity to the range [0,1].
-							opacity = pixelSamples[3] / 256;
+							for (var k = 0; k < numExtraSamples; k++) {
+								if (extraSamplesValues[k] === 1 || extraSamplesValues[k] === 2) {
+									// Clamp opacity to the range [0,1].
+									opacity = pixelSamples[3 + k] / 256;
+
+									break;
+								}
+							}
 						}
 
 						switch (photometricInterpretation) {
