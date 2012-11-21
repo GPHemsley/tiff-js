@@ -41,7 +41,7 @@ TIFFParser.prototype = {
 	getFieldTagName: function (fieldTag) {
 		// See: http://www.digitizationguidelines.gov/guidelines/TIFF_Metadata_Final.pdf
 		// See: http://www.digitalpreservation.gov/formats/content/tiff_tags.shtml
-		const fieldTagNames = {
+		var fieldTagNames = {
 			// TIFF Baseline
 			0x013B: 'Artist',
 			0x0102: 'BitsPerSample',
@@ -164,7 +164,7 @@ TIFFParser.prototype = {
 	},
 
 	getFieldTypeName: function (fieldType) {
-		const fieldTypeNames = {
+		var fieldTypeNames = {
 			0x0001: 'BYTE',
 			0x0002: 'ASCII',
 			0x0003: 'SHORT',
@@ -204,7 +204,8 @@ TIFFParser.prototype = {
 		return fieldTypeLength;
 	},
 
-	getBits: function (numBits, byteOffset, bitOffset = 0) {
+	getBits: function (numBits, byteOffset, bitOffset) {
+		bitOffset = bitOffset || 0;
 		var extraBytes = Math.floor(bitOffset / 8);
 		var newByteOffset = byteOffset + extraBytes;
 		var totalBits = bitOffset + numBits;
@@ -304,7 +305,10 @@ TIFFParser.prototype = {
 		return Math.floor((colorSample * multiplier) + (multiplier - 1));
 	},
 
-	makeRGBAFillValue: function(r, g, b, a = 1.0) {
+	makeRGBAFillValue: function(r, g, b, a) {
+		if(typeof a === 'undefined') {
+			a = 1.0;
+		}
 		return "rgba(" + r + ", " + g + ", " + b + ", " + a + ")";
 	},
 
@@ -338,7 +342,9 @@ TIFFParser.prototype = {
 		}
 	},
 
-	parseTIFF: function (tiffArrayBuffer, canvas = document.createElement("canvas")) {
+	parseTIFF: function (tiffArrayBuffer, canvas) {
+		canvas = canvas || document.createElement('canvas');
+
 		this.tiffDataView = new DataView(tiffArrayBuffer);
 		this.canvas = canvas;
 
