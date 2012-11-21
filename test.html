@@ -23,10 +23,20 @@
 				var canvas = document.getElementById("tiff-image");
 				var canvasParent = canvas.parentNode;
 
-				var tiffParser = new TIFFParser();console.log( tiffParser );
+				// Load the TIFF parser.
+				var tiffParser = new TIFFParser();
+
+				console.log( tiffParser );
+
+				// Parse the TIFF image.
 				var tiffCanvas = tiffParser.parseTIFF(e.target.result, canvas);
+
+				// Make it clear that we've loaded the image.
+				tiffCanvas.style.borderStyle = "solid";
+
 				console.log( tiffCanvas );
 
+				// Put the parsed image in the page.
 				canvasParent.replaceChild(tiffCanvas, canvas);
 			};
 
