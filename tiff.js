@@ -563,11 +563,11 @@ TIFFParser.prototype = {
 
 		if (canvas.getContext) {
 			var ctx = this.canvas.getContext("2d");
-
-			// Set a default fill style.
-			ctx.fillStyle = this.makeRGBAFillValue(255, 255, 255, 0);
-
-			// If RowsPerStrip is missing, the whole image is in one strip.
+			var imageData = ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+			var pixels = imageData.data;
+			var stride = this.canvas.width * 4;
+			
+            // If RowsPerStrip is missing, the whole image is in one strip.
 			if (fileDirectory.RowsPerStrip) {
 				var rowsPerStrip = fileDirectory.RowsPerStrip.values[0];
 			} else {
@@ -622,7 +622,7 @@ TIFFParser.prototype = {
 							for (var k = 0; k < numExtraSamples; k++) {
 								if (extraSamplesValues[k] === 1 || extraSamplesValues[k] === 2) {
 									// Clamp opacity to the range [0,1].
-									opacity = pixelSamples[3 + k] / 256;
+									opacity = pixelSamples[3 + k];
 
 									break;
 								}
@@ -692,13 +692,17 @@ TIFFParser.prototype = {
 							break;
 						}
 
-						ctx.fillStyle = this.makeRGBAFillValue(red, green, blue, opacity);
-						ctx.fillRect(x, yPadding + y, 1, 1);
+						var pindex = 4 * x + (yPadding + y) * stride;
+						pixels[pindex] = red;
+						pixels[pindex + 1] = green;
+						pixels[pindex + 2] = blue;
+						pixels[pindex + 3] = opacity;
 					}
 				}
 
 				numRowsInPreviousStrip = numRowsInStrip;
 			}
+			ctx.putImageData(imageData, 0, 0);
 		}
 
 /*		for (var i = 0, numFileDirectories = this.fileDirectories.length; i < numFileDirectories; i++) {
